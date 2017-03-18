@@ -1,0 +1,178 @@
+---
+title: "Coursera - Activity Monitoring - Reproducible Research - Assignment -1"
+author: "Rajathithan Rajasekar"
+date: "March 17, 2017"
+output: html_document
+keep_md: true
+---
+
+**Declaring the Libraries that are required**
+
+```{r}
+library(lattice)
+```
+
+**Read the activity.csv file if it is present in the local directory.**
+
+```{r}
+if(!exists("activity.csv")){
+        activitylist <- read.csv('activity.csv',na.strings = c("NA"))
+        
+}
+```
+
+**Basic Analysis to check the data**
+
+```{r}
+summary(activitylist)
+head(activitylist)
+tail(activitylist)
+str(activitylist)
+```
+
+**There are 3 columns - Steps, date and interval. The steps column contains "NAs" , Data is taken over of 2 month period from October 2012 to November 2012 (61 days ) and the interval timeframe is from morning till night for every 5 mins.** 
+
+**Transforming the data into a format suitable for our Analysis**
+
+**Date values are converted from factor format to date format and interval is converted from int format to factor format.** 
+
+```{r}
+activitylist$date = as.Date(activitylist$date, format = "%Y-%m-%d")
+activitylist$interval = as.factor(activitylist$interval)
+str(activitylist)
+```
+
+**Creating a Data by Omitting the 'NA' rows**
+
+```{r}
+alistNA <- na.omit(activitylist)
+head(alistNA)
+```
+
+
+**To find total number of steps taken per day **
+```{r}
+stepsperday<- tapply(alistNA$steps, alistNA$date, sum)
+stepsperday
+```
+
+**Histogram on total number of steps taken per day**
+
+```{r}
+hist(stepsperday, col="orange",
+     xlab="Number of Steps",
+     ylab = "Frequency",
+     main="Total Number of Steps Taken Each Day")
+```
+
+
+**Mean of the total steps taken per day**
+```{r}
+meanstepsperday <- mean(stepsperday)
+meanstepsperday
+```
+
+**Median of the total steps taken per day**
+```{r}
+medianstepsperday <- median(stepsperday)
+medianstepsperday
+```
+
+
+**To find Average no. steps taken across all days **
+```{r}
+avgstepsperday<- tapply(alistNA$steps, alistNA$interval, mean)
+avgstepsperday
+names(avgstepsperday)
+```
+
+**A time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)**
+
+```{r}
+plot(names(avgstepsperday), avgstepsperday, type="l",col="red", xlab="5-min interval", ylab="Average no. of steps across all days",main="Time Series Plot")
+```
+
+**The 5-minute interval which contains the maximum number of steps  on an average across all the days in the dataset**
+
+```{r}
+maxavg<- max(avgstepsperday)
+maxavg
+maxinterval<- names(avgstepsperday)[which(avgstepsperday==max(avgstepsperday))]
+maxinterval
+```
+
+**Total no of NAs in the dataset **
+```{r}
+totalna<- sum(is.na(activitylist$steps))
+totalna
+```
+
+**Modify the data by imputing missing NA values from avgsteps for all days during that time interval**
+
+```{r}
+Modifieddata <- activitylist
+
+for(i in which(is.na(Modifieddata$steps))) {
+    #Get the NA index 
+    int <- Modifieddata$interval[i]
+    #get the mean value for that 5-minute interval
+    avgStepsForInt <- avgstepsperday[which (names(avgstepsperday) == int )]
+    #replace the NA with the mean value
+    Modifieddata$steps[i] <- avgStepsForInt
+}
+```
+
+**Total no of NAs in the modified dataset, // ideally this should be Zero :) //**
+```{r}
+totalna<- sum(is.na(Modifieddata$steps))
+totalna
+```
+
+**To find total number of steps taken per day with the modified data set**
+```{r}
+stepsperday<- tapply(Modifieddata$steps, Modifieddata$date, sum)
+stepsperday
+```
+
+**Histogram on total number of steps taken per day with the modified data set**
+
+```{r}
+hist(stepsperday, col="orange",
+     xlab="Number of Steps",
+     ylab = "Frequency",
+     main="Total Number of Steps Taken Each Day")
+```
+
+**Mean of the total steps taken per day on the modified data set**
+```{r}
+meanstepsperday <- mean(stepsperday)
+meanstepsperday
+```
+
+**Median of the total steps taken per day on the modified data set**
+```{r}
+medianstepsperday <- median(stepsperday)
+medianstepsperday
+```
+
+**OBSERVATION: The median and mean got closer**
+
+**Creating a new factor variable in the dataset with two levels - "weekday" and "weekend" indicating whether a given date is a weekday or weekend day**
+
+```{r}
+Modifieddata <- transform(Modifieddata, dayType = ifelse(weekdays(Modifieddata$date) %in% c("Saturday", "Sunday"), "weekend", "weekday"))
+#make it a factor
+Modifieddata <- transform(Modifieddata, dayType = factor(dayType))
+head(Modifieddata)
+```
+
+**Creating a panel plot containing a time series plot with type = "l" of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days and weekend days (y-axis).**
+
+```{r}
+plotData1 <- aggregate(steps ~ interval + dayType, data=Modifieddata, mean)
+head(plotData1)
+xyplot(steps ~ interval|dayType, data = plotData1,
+       type = "l", layout = c(1,2),col="red",
+       xlab="5-Minute Interval", ylab = "Average Number of Steps Taken",
+       main="Average Number of Steps by 5-Minute Intervals (Weekdays vs. Weekends)")
+```
